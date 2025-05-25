@@ -2,9 +2,8 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
 const bodyParser = require('body-parser');
-const { appendLog } = require('./sheets');
+const { appendLog, getUsersFromSheet } = require('./sheets');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,24 +19,30 @@ app.use(session({
   cookie: { maxAge: 15 * 60 * 1000 } // 15 minutes
 }));
 
-// Dummy user database (replace with real one in production)
-const users = {
-  admin: { password: 'adminpass', level: 3 },
-  mod: { password: 'modpass', level: 2 },
-  helper: { password: 'helperpass', level: 1 },
-};
-
 // Login route
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
   const { username, password } = req.body;
-  const user = users[username];
 
-  if (user && user.password === password) {
-    req.session.user = { username, level: user.level };
-    return res.json({ success: true });
+  try {
+    const users = await getUsersFromSheet(); // fetch users from Google Sheet
+    const user = users.find(u =>
+      u.Username?.trim() === username.trim() &&
+      u.Password?.trim() === password.trim()
+    );
+
+    if (user) {
+      req.session.user = {
+        username: user.Username,
+        level: parseInt(user.PermissionLevel)
+      };
+      return res.json({ success: true });
+    }
+
+    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
-
-  return res.status(401).json({ success: false, message: 'Invalid credentials' });
 });
 
 // Logout route
@@ -48,13 +53,13 @@ app.post('/logout', (req, res) => {
   });
 });
 
-// Auth middleware
+// Middleware: Require auth
 function requireAuth(req, res, next) {
   if (req.session.user) return next();
   return res.status(401).json({ error: 'Not logged in' });
 }
 
-// Role middleware
+// Middleware: Require permission level
 function requirePermission(minLevel) {
   return (req, res, next) => {
     if (req.session.user && req.session.user.level >= minLevel) {
@@ -64,7 +69,7 @@ function requirePermission(minLevel) {
   };
 }
 
-// Audit action route
+// Admin action route (warn/kick/ban)
 app.post('/action', requireAuth, (req, res) => {
   const { action, target, reason, evidence1, evidence2, evidence3 } = req.body;
   const level = req.session.user.level;
@@ -73,28 +78,36 @@ app.post('/action', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Missing reason or evidence links' });
   }
 
-  if (action === 'warn' && level >= 1 ||
-      action === 'kick' && level >= 2 ||
-      action === 'ban' && level >= 3) {
-    const logData = {
-      action,
-      username: req.session.user.username,
-      target,
-      reason,
-      evidence1,
-      evidence2,
-      evidence3
-    };
+  const allowed =
+    (action === 'warn' && level >= 1) ||
+    (action === 'kick' && level >= 2) ||
+    (action === 'ban' && level >= 3);
 
-    appendLog(logData)
-      .then(() => res.json({ success: true }))
-      .catch((err) => {
-        console.error('Failed to log to Google Sheets:', err);
-        res.status(500).json({ error: 'Logging failed' });
-      });
-  } else {
+  if (!allowed) {
     return res.status(403).json({ error: 'Not allowed to perform this action' });
   }
+
+  const logData = {
+    action,
+    username: req.session.user.username,
+    target,
+    reason,
+    evidence1,
+    evidence2,
+    evidence3
+  };
+
+  appendLog(logData)
+    .then(() => res.json({ success: true }))
+    .catch(err => {
+      console.error('Logging failed:', err);
+      res.status(500).json({ error: 'Logging failed' });
+    });
+});
+
+// Serve login page (default route)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 // Serve dashboard if logged in
@@ -102,15 +115,14 @@ app.get('/dashboard', requireAuth, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// Serve login page if not logged in
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
-// Get session data
+// Get session data for frontend
 app.get('/session', (req, res) => {
   if (req.session.user) {
-    res.json({ loggedIn: true, username: req.session.user.username, level: req.session.user.level });
+    res.json({
+      loggedIn: true,
+      username: req.session.user.username,
+      level: req.session.user.level
+    });
   } else {
     res.json({ loggedIn: false });
   }
