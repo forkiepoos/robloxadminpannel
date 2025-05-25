@@ -1,44 +1,36 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const cors = require('cors');
-const { logToSheet } = require('./sheets');
+const path = require('path');
+const bodyParser = require('body-parser');
+const { logToSheet, getLogsFromSheet } = require('./sheets');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(bodyParser.json());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/log', async (req, res) => {
-  const data = req.body;
-
-  // Debug logging
-  console.log('📦 Incoming data:', data);
-
-  // Basic validation
-  if (
-    !data.admin ||
-    !data.action ||
-    !data.target ||
-    !data.reason ||
-    !data.evidence1 ||
-    !data.evidence2 ||
-    !data.evidence3
-  ) {
-    console.error('❌ Missing required fields');
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
   try {
-    await logToSheet(data);
-    res.status(200).json({ message: '✅ Log saved to Google Sheets' });
+    await logToSheet(req.body);
+    res.json({ message: '✅ Log saved to Google Sheets' });
   } catch (err) {
-    console.error('❌ Error logging to Google Sheets:', err);
-    res.status(500).json({ error: 'Failed to log to sheet' });
+    console.error('Error saving to sheet:', err);
+    res.status(500).json({ error: 'Failed to log to Google Sheets' });
+  }
+});
+
+app.get('/logs', async (req, res) => {
+  try {
+    const logs = await getLogsFromSheet();
+    res.json({ logs });
+  } catch (err) {
+    console.error('Error fetching logs:', err);
+    res.status(500).json({ error: 'Failed to fetch logs' });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
