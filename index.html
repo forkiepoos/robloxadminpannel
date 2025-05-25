@@ -1,24 +1,59 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Admin Logs</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roblox Admin Panel Logs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Admin Logs</h1>
-  <ul id="logList"></ul>
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+  <div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6 text-center">Roblox Admin Panel Logs</h1>
+    <div class="overflow-x-auto">
+      <table class="min-w-full bg-gray-800 rounded-lg">
+        <thead>
+          <tr class="text-left text-gray-300 border-b border-gray-600">
+            <th class="p-3">Admin</th>
+            <th class="p-3">Action</th>
+            <th class="p-3">Target</th>
+            <th class="p-3">Reason</th>
+            <th class="p-3">Evidence</th>
+            <th class="p-3">Time</th>
+          </tr>
+        </thead>
+        <tbody id="logTableBody">
+          <!-- Logs will be inserted here via JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
 
   <script>
-    fetch('/logs')
-      .then(response => response.json())
-      .then(logs => {
-        const logList = document.getElementById('logList');
-        logs.forEach(log => {
-          const listItem = document.createElement('li');
-          listItem.textContent = `${new Date(log.timestamp * 1000).toLocaleString()} - ${log.admin} ${log.action} ${log.target}: ${log.reason}`;
-          logList.appendChild(listItem);
-        });
+    async function fetchLogs() {
+      const res = await fetch('/logs.json');
+      const logs = await res.json();
+      const tbody = document.getElementById('logTableBody');
+
+      logs.reverse().forEach(log => {
+        const row = document.createElement('tr');
+        row.classList.add("border-b", "border-gray-700", "hover:bg-gray-700");
+
+        row.innerHTML = `
+          <td class="p-3">${log.admin}</td>
+          <td class="p-3">${log.action}</td>
+          <td class="p-3">${log.target}</td>
+          <td class="p-3">${log.reason}</td>
+          <td class="p-3">
+            ${log.evidence.map((link, i) => `<a class='text-blue-400 underline' href='${link}' target='_blank'>Link ${i+1}</a>`).join('<br>')}
+          </td>
+          <td class="p-3">${new Date(log.timestamp * 1000).toLocaleString()}</td>
+        `;
+
+        tbody.appendChild(row);
       });
+    }
+
+    fetchLogs();
   </script>
 </body>
 </html>
