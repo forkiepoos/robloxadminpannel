@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard</title>
+</head>
+<body>
+  <h1>Roblox Admin Panel</h1>
+  <p id="user-info"></p>
+
+  <form id="actionForm">
+    <input type="text" id="target" placeholder="Target Username" required><br>
+    <input type="text" id="reason" placeholder="Reason" required><br>
+    <input type="url" id="evidence1" placeholder="Evidence Link 1" required><br>
+    <input type="url" id="evidence2" placeholder="Evidence Link 2" required><br>
+    <input type="url" id="evidence3" placeholder="Evidence Link 3" required><br>
+    <select id="action">
+      <option value="warn">Warn</option>
+      <option value="kick">Kick</option>
+      <option value="ban">Ban</option>
+    </select><br>
+    <button type="submit">Submit</button>
+  </form>
+
+  <button onclick="logout()">Logout</button>
+
+  <script>
+    async function logout() {
+      await fetch('/logout');
+      window.location.href = '/login.html';
+    }
+
+    async function submitAction(event) {
+      event.preventDefault();
+      const res = await fetch('/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: document.getElementById('action').value,
+          target: document.getElementById('target').value,
+          reason: document.getElementById('reason').value,
+          evidence: [
+            document.getElementById('evidence1').value,
+            document.getElementById('evidence2').value,
+            document.getElementById('evidence3').value,
+          ],
+        }),
+      });
+
+      const data = await res.json();
+      alert(data.message);
+    }
+
+    document.getElementById('actionForm').addEventListener('submit', submitAction);
+  </script>
+</body>
+</html>
