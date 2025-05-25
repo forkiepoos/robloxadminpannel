@@ -2,77 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 min-h-screen">
-  <header class="bg-blue-600 text-white p-4">
-    <div class="container mx-auto flex justify-between items-center">
-      <h1 class="text-xl font-bold">Admin Dashboard</h1>
-      <a href="/logout" class="bg-white text-blue-600 px-4 py-1 rounded hover:bg-gray-200">Logout</a>
-    </div>
-  </header>
+<body class="bg-gray-100 text-gray-900">
+  <div class="max-w-3xl mx-auto p-6">
+    <h1 class="text-2xl font-bold mb-4">Admin Dashboard</h1>
 
-  <main class="container mx-auto mt-8 p-4 bg-white shadow rounded space-y-8">
-    <section>
-      <h2 class="text-2xl font-bold mb-4">Issue Action</h2>
-      <form id="action-form" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium">Target Username</label>
-            <input type="text" name="target" required class="w-full px-3 py-2 border rounded-md" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium">Action Type</label>
-            <select name="action" required class="w-full px-3 py-2 border rounded-md">
-              <option value="">Select...</option>
-              <option value="ban">Ban</option>
-              <option value="kick">Kick</option>
-              <option value="warn">Warn</option>
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium">Reason</label>
-          <input type="text" name="reason" required class="w-full px-3 py-2 border rounded-md" />
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-sm font-medium">Evidence Link 1</label>
-            <input type="url" name="evidence1" required class="w-full px-3 py-2 border rounded-md" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium">Evidence Link 2</label>
-            <input type="url" name="evidence2" required class="w-full px-3 py-2 border rounded-md" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium">Evidence Link 3</label>
-            <input type="url" name="evidence3" required class="w-full px-3 py-2 border rounded-md" />
-          </div>
-        </div>
-
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          Submit Action
-        </button>
-      </form>
-    </section>
-
-    <section>
-      <h2 class="text-2xl font-bold mb-4">Audit Logs</h2>
-      <div id="log-container" class="bg-gray-50 p-4 rounded border overflow-x-auto text-sm">
-        <p class="text-gray-500">Loading logs...</p>
+    <form id="action-form" class="bg-white p-4 rounded shadow">
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Action</label>
+        <select name="action" class="w-full border px-3 py-2 rounded">
+          <option value="ban">Ban</option>
+          <option value="kick">Kick</option>
+          <option value="warn">Warn</option>
+        </select>
       </div>
-    </section>
-  </main>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Target Username</label>
+        <input name="target" type="text" required class="w-full border px-3 py-2 rounded" />
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Reason</label>
+        <textarea name="reason" required class="w-full border px-3 py-2 rounded"></textarea>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium mb-1">Evidence Links</label>
+        <div class="flex gap-2 mb-2">
+          <input id="evidence-input" type="url" placeholder="Enter evidence URL" class="w-full px-3 py-2 border rounded-md" />
+          <button id="add-evidence" type="button" class="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700">+</button>
+          <span id="evidence-count" class="text-gray-700 self-center text-sm">0/3</span>
+        </div>
+        <ul id="evidence-list" class="list-disc list-inside text-sm text-gray-600"></ul>
+      </div>
+
+      <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Submit Action</button>
+    </form>
+
+    <h2 class="text-xl font-semibold mt-8 mb-4">Action Logs</h2>
+    <div id="log-container" class="bg-white p-4 rounded shadow"></div>
+  </div>
 
   <script>
+    const evidenceInput = document.getElementById('evidence-input');
+    const addEvidenceBtn = document.getElementById('add-evidence');
+    const evidenceList = document.getElementById('evidence-list');
+    const evidenceCount = document.getElementById('evidence-count');
+    const evidenceLinks = [];
+
+    addEvidenceBtn.addEventListener('click', () => {
+      const value = evidenceInput.value.trim();
+      if (!value) return;
+
+      if (evidenceLinks.length >= 3) {
+        alert("You can only add up to 3 evidence links.");
+        return;
+      }
+
+      evidenceLinks.push(value);
+      const li = document.createElement('li');
+      li.textContent = value;
+      evidenceList.appendChild(li);
+
+      evidenceInput.value = '';
+      evidenceCount.textContent = `${evidenceLinks.length}/3`;
+    });
+
     document.getElementById('action-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+
+      if (evidenceLinks.length !== 3) {
+        alert("Please add exactly 3 evidence links.");
+        return;
+      }
+
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData.entries());
+
+      // Map evidence links
+      [data.evidence1, data.evidence2, data.evidence3] = evidenceLinks;
 
       const res = await fetch('/action', {
         method: 'POST',
@@ -83,7 +95,10 @@
       if (res.ok) {
         alert('Action submitted!');
         e.target.reset();
-        fetchLogs(); // Refresh logs
+        evidenceLinks.length = 0;
+        evidenceList.innerHTML = '';
+        evidenceCount.textContent = '0/3';
+        fetchLogs(); // refresh logs
       } else {
         alert('Error submitting action.');
       }
@@ -93,13 +108,9 @@
       try {
         const res = await fetch('/logs');
         const logs = await res.json();
+
         const container = document.getElementById('log-container');
         container.innerHTML = '';
-
-        if (!Array.isArray(logs)) {
-          container.innerHTML = '<p class="text-red-500">Invalid logs format.</p>';
-          return;
-        }
 
         if (logs.length === 0) {
           container.innerHTML = '<p class="text-gray-500">No logs available.</p>';
@@ -110,26 +121,37 @@
           const entry = document.createElement('div');
           entry.className = 'mb-2 p-2 border-b';
 
+          const badgeColors = {
+            ban: 'bg-red-200 text-red-800',
+            kick: 'bg-yellow-200 text-yellow-800',
+            warn: 'bg-blue-200 text-blue-800'
+          };
+
           entry.innerHTML = `
-            <strong>${log.timestamp || 'No Timestamp'}</strong><br/>
-            <span>${log.action?.toUpperCase() || 'UNKNOWN'} - ${log.target || 'N/A'}</span><br/>
-            <span>Reason: ${log.reason || 'N/A'}</span><br/>
-            <span>Evidence: 
-              <a class="text-blue-500 underline" href="${log.evidence1 || '#'}" target="_blank">1</a>, 
-              <a class="text-blue-500 underline" href="${log.evidence2 || '#'}" target="_blank">2</a>, 
-              <a class="text-blue-500 underline" href="${log.evidence3 || '#'}" target="_blank">3</a>
-            </span>
+            <div class="flex items-center justify-between">
+              <strong>${log.timestamp}</strong>
+              <span class="text-xs px-2 py-1 rounded-full ${badgeColors[log.action] || 'bg-gray-200'}">
+                ${log.action.toUpperCase()}
+              </span>
+            </div>
+            <div><span>${log.target}</span></div>
+            <div><span>Reason: ${log.reason}</span></div>
+            <div>
+              Evidence: 
+              <a class="text-blue-500 underline" href="${log.evidence1}" target="_blank">1</a>, 
+              <a class="text-blue-500 underline" href="${log.evidence2}" target="_blank">2</a>, 
+              <a class="text-blue-500 underline" href="${log.evidence3}" target="_blank">3</a>
+            </div>
           `;
           container.appendChild(entry);
         });
       } catch (err) {
-        console.error('Error loading logs:', err);
-        document.getElementById('log-container').innerHTML = '<p class="text-red-500">Error loading logs.</p>';
+        console.error('Error loading logs', err);
       }
     }
 
     fetchLogs();
-    setInterval(fetchLogs, 30000); // Refresh every 30 seconds
+    setInterval(fetchLogs, 30000); // Refresh every 30s
   </script>
 </body>
 </html>
