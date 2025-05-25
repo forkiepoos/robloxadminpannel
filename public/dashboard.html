@@ -14,18 +14,117 @@
     </div>
   </header>
 
-  <main class="container mx-auto mt-8 p-4 bg-white shadow rounded">
-    <h2 class="text-2xl font-bold mb-4">Welcome!</h2>
-    <p>This is the admin panel. Use the menu to ban, kick, or warn users.</p>
+  <main class="container mx-auto mt-8 p-4 bg-white shadow rounded space-y-8">
+    <section>
+      <h2 class="text-2xl font-bold mb-4">Issue Action</h2>
+      <form id="action-form" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium">Target Username</label>
+            <input type="text" name="target" required class="w-full px-3 py-2 border rounded-md" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Action Type</label>
+            <select name="action" required class="w-full px-3 py-2 border rounded-md">
+              <option value="">Select...</option>
+              <option value="ban">Ban</option>
+              <option value="kick">Kick</option>
+              <option value="warn">Warn</option>
+            </select>
+          </div>
+        </div>
 
-    <!-- Your log viewer and action panel will go here -->
-    <div class="mt-6">
-      <!-- Example Section -->
-      <h3 class="text-lg font-semibold mb-2">Recent Logs</h3>
-      <div id="log-container" class="bg-gray-50 p-4 rounded border overflow-x-auto">
-        <p>Logs will appear here from Google Sheets...</p>
+        <div>
+          <label class="block text-sm font-medium">Reason</label>
+          <input type="text" name="reason" required class="w-full px-3 py-2 border rounded-md" />
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-sm font-medium">Evidence Link 1</label>
+            <input type="url" name="evidence1" required class="w-full px-3 py-2 border rounded-md" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Evidence Link 2</label>
+            <input type="url" name="evidence2" required class="w-full px-3 py-2 border rounded-md" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium">Evidence Link 3</label>
+            <input type="url" name="evidence3" required class="w-full px-3 py-2 border rounded-md" />
+          </div>
+        </div>
+
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+          Submit Action
+        </button>
+      </form>
+    </section>
+
+    <section>
+      <h2 class="text-2xl font-bold mb-4">Audit Logs</h2>
+      <div id="log-container" class="bg-gray-50 p-4 rounded border overflow-x-auto text-sm">
+        <p class="text-gray-500">Loading logs...</p>
       </div>
-    </div>
+    </section>
   </main>
+
+  <script>
+    document.getElementById('action-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+
+      const res = await fetch('/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (res.ok) {
+        alert('Action submitted!');
+        e.target.reset();
+        fetchLogs(); // Refresh logs
+      } else {
+        alert('Error submitting action.');
+      }
+    });
+
+    async function fetchLogs() {
+      try {
+        const res = await fetch('/logs');
+        const logs = await res.json();
+
+        const container = document.getElementById('log-container');
+        container.innerHTML = '';
+
+        if (logs.length === 0) {
+          container.innerHTML = '<p class="text-gray-500">No logs available.</p>';
+          return;
+        }
+
+        logs.forEach((log) => {
+          const entry = document.createElement('div');
+          entry.className = 'mb-2 p-2 border-b';
+
+          entry.innerHTML = `
+            <strong>${log.timestamp}</strong><br/>
+            <span>${log.action.toUpperCase()} - ${log.target}</span><br/>
+            <span>Reason: ${log.reason}</span><br/>
+            <span>Evidence: 
+              <a class="text-blue-500 underline" href="${log.evidence1}" target="_blank">1</a>, 
+              <a class="text-blue-500 underline" href="${log.evidence2}" target="_blank">2</a>, 
+              <a class="text-blue-500 underline" href="${log.evidence3}" target="_blank">3</a>
+            </span>
+          `;
+          container.appendChild(entry);
+        });
+      } catch (err) {
+        console.error('Error loading logs', err);
+      }
+    }
+
+    fetchLogs();
+    setInterval(fetchLogs, 30000); // Refresh every 30 seconds
+  </script>
 </body>
 </html>
