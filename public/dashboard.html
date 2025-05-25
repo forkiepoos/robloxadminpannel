@@ -92,16 +92,15 @@
     async function fetchLogs() {
       try {
         const res = await fetch('/logs');
-        const result = await res.json();
+        const logs = await res.json();
         const container = document.getElementById('log-container');
         container.innerHTML = '';
 
-        if (!result.success || !Array.isArray(result.logs)) {
-          container.innerHTML = '<p class="text-red-500">Failed to load logs.</p>';
+        if (!Array.isArray(logs)) {
+          container.innerHTML = '<p class="text-red-500">Invalid logs format.</p>';
           return;
         }
 
-        const logs = result.logs;
         if (logs.length === 0) {
           container.innerHTML = '<p class="text-gray-500">No logs available.</p>';
           return;
@@ -112,19 +111,19 @@
           entry.className = 'mb-2 p-2 border-b';
 
           entry.innerHTML = `
-            <strong>${log.timestamp}</strong><br/>
-            <span>${log.action.toUpperCase()} - ${log.target}</span><br/>
-            <span>Reason: ${log.reason}</span><br/>
+            <strong>${log.timestamp || 'No Timestamp'}</strong><br/>
+            <span>${log.action?.toUpperCase() || 'UNKNOWN'} - ${log.target || 'N/A'}</span><br/>
+            <span>Reason: ${log.reason || 'N/A'}</span><br/>
             <span>Evidence: 
-              <a class="text-blue-500 underline" href="${log.evidence1}" target="_blank">1</a>, 
-              <a class="text-blue-500 underline" href="${log.evidence2}" target="_blank">2</a>, 
-              <a class="text-blue-500 underline" href="${log.evidence3}" target="_blank">3</a>
+              <a class="text-blue-500 underline" href="${log.evidence1 || '#'}" target="_blank">1</a>, 
+              <a class="text-blue-500 underline" href="${log.evidence2 || '#'}" target="_blank">2</a>, 
+              <a class="text-blue-500 underline" href="${log.evidence3 || '#'}" target="_blank">3</a>
             </span>
           `;
           container.appendChild(entry);
         });
       } catch (err) {
-        console.error('Error loading logs', err);
+        console.error('Error loading logs:', err);
         document.getElementById('log-container').innerHTML = '<p class="text-red-500">Error loading logs.</p>';
       }
     }
