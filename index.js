@@ -16,7 +16,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'robloxadminsecret',
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 15 * 60 * 1000 } // 15 min
+  cookie: { maxAge: 15 * 60 * 1000 } // 15 minutes
 }));
 
 // Login route
@@ -70,30 +70,35 @@ app.post('/action', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Missing reason or evidence links' });
   }
 
-  if ((action === 'warn' && level >= 1) ||
-      (action === 'kick' && level >= 2) ||
-      (action === 'ban' && level >= 3)) {
-    
-    const logData = {
-      timestamp: new Date().toISOString(),
-      action,
-      username: req.session.user.username,
-      target,
-      reason,
-      evidence1,
-      evidence2,
-      evidence3
-    };
-
-    appendLog(logData)
-      .then(() => res.json({ success: true }))
-      .catch((err) => {
-        console.error('Failed to log to Google Sheets:', err);
-        res.status(500).json({ error: 'Logging failed' });
-      });
-  } else {
+  const actionPermissions = { warn: 1, kick: 2, ban: 3 };
+  if (level < actionPermissions[action]) {
     return res.status(403).json({ error: 'Not allowed to perform this action' });
   }
+
+  const now = new Date();
+  const timestamp = `${(now.getMonth() + 1).toString().padStart(2, '0')}/` +
+                    `${now.getDate().toString().padStart(2, '0')}/` +
+                    `${now.getFullYear().toString().slice(-2)} ` +
+                    `${now.getHours().toString().padStart(2, '0')}:` +
+                    `${now.getMinutes().toString().padStart(2, '0')}`;
+
+  const logData = {
+    timestamp,
+    action,
+    username: req.session.user.username,
+    target,
+    reason,
+    evidence1,
+    evidence2,
+    evidence3
+  };
+
+  appendLog(logData)
+    .then(() => res.json({ success: true }))
+    .catch((err) => {
+      console.error('Failed to log to Google Sheets:', err);
+      res.status(500).json({ error: 'Logging failed' });
+    });
 });
 
 // Logs endpoint
