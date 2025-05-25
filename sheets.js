@@ -2,67 +2,58 @@ const { google } = require('googleapis');
 const fs = require('fs');
 const path = require('path');
 
-// Load credentials from service account JSON file
 const auth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, 'credentials.json'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+  keyFile: path.join(__dirname, 'credentials.json'), // Make sure this file exists and is correct
+  scopes: ['https://www.googleapis.com/auth/spreadsheets']
 });
 
-// Spreadsheet ID comes from Render env var
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+const SHEET_ID = process.env.SHEET_ID; // Set this in your Render environment
 
-async function authorizeSheets() {
+async function getUsersFromSheet() {
+  try {
+    const client = await auth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: 'Users!A1:C', // Column A: Username, B: Password, C: PermissionLevel
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length < 2) return [];
+
+    const headers = rows[0];
+    const dataRows = rows.slice(1);
+
+    const users = dataRows.map(row => {
+      let user = {};
+      headers.forEach((header, index) => {
+        user[header.trim()] = row[index]?.trim() || '';
+      });
+      return user;
+    });
+
+    return users;
+  } catch (err) {
+    console.error('Error in getUsersFromSheet():', err.message);
+    throw err;
+  }
+}
+
+async function appendLog({ action, username, target, reason, evidence1, evidence2, evidence3 }) {
   const client = await auth.getClient();
   const sheets = google.sheets({ version: 'v4', auth: client });
-  return sheets;
-}
 
-// Fetch user by username and password
-async function getUserFromSheets(username, password) {
-  const sheets = await authorizeSheets();
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: SPREADSHEET_ID,
-    range: 'Users!A2:C',
-  });
-
-  const users = res.data.values || [];
-
-  for (let row of users) {
-    if (row[0] === username && row[1] === password) {
-      return {
-        username: row[0],
-        permissionLevel: parseInt(row[2], 10),
-      };
-    }
-  }
-
-  return null;
-}
-
-// Log action to Logs sheet
-async function logActionToSheets(action, staff, target, reason, evidenceArray) {
-  const sheets = await authorizeSheets();
-  const values = [[
-    action,
-    staff,
-    target,
-    reason,
-    evidenceArray[0] || '',
-    evidenceArray[1] || '',
-    evidenceArray[2] || '',
-    new Date().toISOString(),
-  ]];
+  const values = [
+    [new Date().toLocaleString(), action, username, target, reason, evidence1, evidence2, evidence3]
+  ];
 
   await sheets.spreadsheets.values.append({
-    spreadsheetId: SPREADSHEET_ID,
-    range: 'Logs!A2:H',
+    spreadsheetId: SHEET_ID,
+    range: 'Logs!A1',
     valueInputOption: 'USER_ENTERED',
-    resource: { values },
+    requestBody: { values },
   });
 }
 
-module.exports = {
-  authorizeSheets,
-  getUserFromSheets,
-  logActionToSheets,
-};
+module.exports = { getUsersFromSheet, appendLog };
