@@ -1,0 +1,24 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Logs</title>
+</head>
+<body>
+  <h1>Admin Logs</h1>
+  <ul id="logList"></ul>
+
+  <script>
+    fetch('/logs')
+      .then(response => response.json())
+      .then(logs => {
+        const logList = document.getElementById('logList');
+        logs.forEach(log => {
+          const listItem = document.createElement('li');
+          listItem.textContent = `${new Date(log.timestamp * 1000).toLocaleString()} - ${log.admin} ${log.action} ${log.target}: ${log.reason}`;
+          logList.appendChild(listItem);
+        });
+      });
+  </script>
+</body>
+</html>
