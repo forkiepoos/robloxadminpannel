@@ -1,107 +1,82 @@
 const express = require('express');
-const session = require('express-session');
-const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const path = require('path');
-const bodyParser = require('body-parser');
-const { authorizeSheets, getUserFromSheets, logActionToSheets } = require('./sheet');
+const { getUserFromSheets, logActionToSheets } = require('./sheet');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
+app.use(cookieParser());
+
+// Serve static files
 app.use(express.static('public'));
 
-app.use(session({
-  secret: 'supersecret',
-  resave: false,
-  saveUninitialized: true
-}));
+// Auth middleware
+function checkAuth(req, res, next) {
+  const user = req.cookies.user;
+  const expires = parseInt(req.cookies.expires, 10);
 
-// 🔐 LOGIN
-app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  const user = await getUserFromSheets(username, password);
-
-  if (user) {
-    req.session.username = user.username;
-    req.session.permissionLevel = parseInt(user.permissionLevel);
-    res.json({ success: true, permissionLevel: user.permissionLevel });
-  } else {
-    res.status(401).json({ success: false, message: 'Invalid credentials' });
+  if (!user || !expires || Date.now() > expires) {
+    res.clearCookie('user');
+    res.clearCookie('expires');
+    return res.redirect('/login.html');
   }
-});
 
-// 🔓 LOGOUT
-app.post('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.json({ success: true });
-  });
-});
-
-// 🔐 AUTH MIDDLEWARE
-function requireAuth(req, res, next) {
-  if (!req.session.username) return res.status(401).json({ message: 'Not logged in' });
+  req.user = JSON.parse(user);
   next();
 }
 
-// 🔒 PERMISSION CHECKS
-function checkPermission(requiredLevel) {
-  return (req, res, next) => {
-    if (req.session.permissionLevel >= requiredLevel) {
-      next();
-    } else {
-      res.status(403).json({ message: 'Insufficient permissions' });
-    }
+// Login handler
+app.post('/auth', async (req, res) => {
+  const { username, password } = req.body;
+  const user = await getUserFromSheets(username, password);
+
+  if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+
+  // Set 15-minute cookie
+  const expires = Date.now() + 15 * 60 * 1000;
+  res.cookie('user', JSON.stringify(user), { httpOnly: true });
+  res.cookie('expires', expires.toString(), { httpOnly: true });
+
+  res.sendStatus(200);
+});
+
+// Logout handler
+app.get('/logout', (req, res) => {
+  res.clearCookie('user');
+  res.clearCookie('expires');
+  res.redirect('/login.html');
+});
+
+// Dashboard route
+app.get('/dashboard', checkAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
+});
+
+// Action route
+app.post('/action', checkAuth, async (req, res) => {
+  const { action, target, reason, evidence } = req.body;
+  const user = req.user;
+
+  if (!target || !reason || !evidence || evidence.length !== 3) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
+  const allowed = {
+    1: ['warn'],
+    2: ['warn', 'kick'],
+    3: ['warn', 'kick', 'ban'],
   };
-}
 
-// ✅ BAN (level 3 only)
-app.post('/ban', requireAuth, checkPermission(3), async (req, res) => {
-  const { targetUser, reason, evidence1, evidence2, evidence3 } = req.body;
-  await logActionToSheets('Ban', req.session.username, targetUser, reason, [evidence1, evidence2, evidence3]);
-  res.json({ success: true });
-});
+  const permitted = allowed[user.permissionLevel] || [];
 
-// ✅ KICK (level 2+)
-app.post('/kick', requireAuth, checkPermission(2), async (req, res) => {
-  const { targetUser, reason, evidence1, evidence2, evidence3 } = req.body;
-  await logActionToSheets('Kick', req.session.username, targetUser, reason, [evidence1, evidence2, evidence3]);
-  res.json({ success: true });
-});
+  if (!permitted.includes(action)) {
+    return res.status(403).json({ message: 'Permission denied' });
+  }
 
-// ✅ WARN (level 1+)
-app.post('/warn', requireAuth, checkPermission(1), async (req, res) => {
-  const { targetUser, reason, evidence1, evidence2, evidence3 } = req.body;
-  await logActionToSheets('Warn', req.session.username, targetUser, reason, [evidence1, evidence2, evidence3]);
-  res.json({ success: true });
-});
-
-// 🔄 SERVE LOGS FOR FRONTEND
-app.get('/logs', requireAuth, async (req, res) => {
-  const sheet = await authorizeSheets();
-  const result = await sheet.spreadsheets.values.get({
-    spreadsheetId: process.env.SPREADSHEET_ID,
-    range: 'Logs!A2:G',
-  });
-
-  const rows = result.data.values || [];
-  const formatted = rows.map(row => ({
-    action: row[0],
-    staff: row[1],
-    target: row[2],
-    reason: row[3],
-    evidence1: row[4],
-    evidence2: row[5],
-    evidence3: row[6],
-  }));
-
-  res.json(formatted);
-});
-
-// 🧾 DASHBOARD ROUTE
-app.get('/dashboard', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+  await logActionToSheets(action, user.username, target, reason, evidence);
+  res.json({ message: 'Action logged' });
 });
 
 app.listen(PORT, () => {
