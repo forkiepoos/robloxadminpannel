@@ -1,50 +1,48 @@
 const express = require('express');
-const cors = require('cors');
 const fs = require('fs');
+const path = require('path');
+const bodyParser = require('body-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
 app.use(express.static('public'));
+app.use(bodyParser.json());
 
-const LOG_FILE = 'logs.json';
+const logsPath = path.join(__dirname, 'public/logs.json');
 
-// Load logs from file
-function loadLogs() {
-  try {
-    const data = fs.readFileSync(LOG_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (err) {
-    return [];
-  }
+// Ensure logs.json exists
+if (!fs.existsSync(logsPath)) {
+  fs.writeFileSync(logsPath, '[]', 'utf8');
 }
 
-// Save logs to file
-function saveLog(log) {
-  const logs = loadLogs();
-  logs.push(log);
-  fs.writeFileSync(LOG_FILE, JSON.stringify(logs, null, 2));
-}
-
-// ✅ POST /log endpoint
 app.post('/log', (req, res) => {
-  const log = req.body;
-  if (!log.admin || !log.action || !log.target || !log.reason || !log.evidence) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
-  saveLog(log);
-  res.status(200).json({ message: "Log saved" });
+  const newLog = req.body;
+
+  // Add timestamp if not included
+  newLog.timestamp = newLog.timestamp || Math.floor(Date.now() / 1000);
+
+  fs.readFile(logsPath, 'utf8', (err, data) => {
+    if (err) return res.status(500).send('Error reading log file.');
+
+    let logs = [];
+    try {
+      logs = JSON.parse(data);
+    } catch {
+      logs = [];
+    }
+
+    logs.push(newLog);
+
+    fs.writeFile(logsPath, JSON.stringify(logs, null, 2), 'utf8', err => {
+      if (err) return res.status(500).send('Error writing to log file.');
+      res.status(200).send('Log saved.');
+    });
+  });
 });
 
-// GET / (view logs)
-app.get('/', (req, res) => {
-  const logs = loadLogs();
-  res.send(`
-    <h1>Admin Logs</h1>
-    <pre>${JSON.stringify(logs, null, 2)}</pre>
-  `);
+app.get('/logs.json', (req, res) => {
+  res.sendFile(logsPath);
 });
 
 app.listen(PORT, () => {
