@@ -1,15 +1,13 @@
 const { google } = require('googleapis');
-const fs = require('fs');
-const path = require('path');
 
-// Load service account key
 const auth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, 'sheets-key.json'),
+  credentials: JSON.parse(process.env.GOOGLE_SERVICE_KEY),
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-// Replace with your actual Google Sheet ID
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
+const SPREADSHEET_ID = '1236sjv29p8Dp4Ko-NhHauVT5voGOxEW2JsbuEe224aY';
+
+// ... rest of the file stays the same
 
 // Append a row to the Google Sheet
 async function logToSheet({ admin, action, target, reason, evidence1, evidence2, evidence3, timestamp }) {
