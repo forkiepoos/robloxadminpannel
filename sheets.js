@@ -5,7 +5,7 @@ const auth = new google.auth.GoogleAuth({
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID';
+const SPREADSHEET_ID = '1236sjv29p8Dp4Ko-NhHauVT5voGOxEW2JsbuEe224aY';
 const SHEET_NAME = 'Logs';
 
 async function logToSheet(data) {
