@@ -1,56 +1,44 @@
 const { google } = require('googleapis');
 
-// Authenticate using service account credentials
 const auth = new google.auth.GoogleAuth({
   credentials: JSON.parse(process.env.GOOGLE_SERVICE_KEY),
   scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 });
 
-const SPREADSHEET_ID = '1236sjv29p8Dp4Ko-NhHauVT5voGOxEW2JsbuEe224aY'; // ← Replace with your actual ID
-const SHEET_NAME = 'Logs'; // Make sure this tab exists in your spreadsheet
+const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID';
+const SHEET_NAME = 'Logs';
 
 async function logToSheet(data) {
-  const client = await auth.getClient();
-  const sheets = google.sheets({ version: 'v4', auth: client });
-
-  const {
-    admin = '',
-    action = '',
-    target = '',
-    reason = '',
-    evidence1 = '',
-    evidence2 = '',
-    evidence3 = '',
-  } = data;
-
-  const timestamp = new Date().toISOString();
-
-  const row = [[
-    admin,
-    action,
-    target,
-    reason,
-    evidence1,
-    evidence2,
-    evidence3,
-    timestamp
-  ]];
-
-  console.log("📤 Writing row to Google Sheets:", row);
-
-  try {
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A:H`,
-      valueInputOption: 'RAW',
-      requestBody: {
-        values: row,
-      },
-    });
-    console.log('✅ Successfully logged to sheet');
-  } catch (error) {
-    console.error('❌ Failed to log to sheet:', error.message);
-  }
+  const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_NAME}!A1`,
+    valueInputOption: 'RAW',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: {
+      values: [
+        [
+          new Date().toISOString(),
+          data.admin,
+          data.action,
+          data.target,
+          data.reason,
+          data.evidence1,
+          data.evidence2,
+          data.evidence3
+        ],
+      ],
+    },
+  });
 }
 
-module.exports = { logToSheet };
+async function getLogsFromSheet() {
+  const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
+  const result = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `${SHEET_NAME}!A2:H`,
+  });
+  return result.data.values || [];
+}
+
+module.exports = { logToSheet, getLogsFromSheet };
