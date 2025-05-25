@@ -2,61 +2,55 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Roblox Admin Panel Logs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Roblox Admin Logs</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-900 text-white min-h-screen font-sans">
-  <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-6 text-center">Roblox Admin Panel Logs</h1>
-
-    <div class="overflow-x-auto rounded-lg shadow">
-      <table class="min-w-full bg-gray-800 text-sm rounded-lg">
-        <thead class="text-gray-300 border-b border-gray-600">
-          <tr>
-            <th class="p-3 text-left">Admin</th>
-            <th class="p-3 text-left">Action</th>
-            <th class="p-3 text-left">Target</th>
-            <th class="p-3 text-left">Reason</th>
-            <th class="p-3 text-left">Evidence</th>
-            <th class="p-3 text-left">Time</th>
-          </tr>
-        </thead>
-        <tbody id="logTableBody">
-          <!-- Logs will be inserted here -->
-        </tbody>
-      </table>
-    </div>
+<body class="bg-gray-100 text-gray-900 p-6">
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl font-bold mb-6 text-center">Roblox Admin Logs</h1>
+    <table class="min-w-full bg-white border rounded-lg shadow">
+      <thead class="bg-gray-200">
+        <tr>
+          <th class="px-4 py-2">Date</th>
+          <th class="px-4 py-2">Admin</th>
+          <th class="px-4 py-2">Action</th>
+          <th class="px-4 py-2">Target</th>
+          <th class="px-4 py-2">Reason</th>
+          <th class="px-4 py-2">Evidence 1</th>
+          <th class="px-4 py-2">Evidence 2</th>
+          <th class="px-4 py-2">Evidence 3</th>
+        </tr>
+      </thead>
+      <tbody id="logTableBody" class="text-sm text-gray-700"></tbody>
+    </table>
   </div>
 
   <script>
-    async function fetchLogs() {
+    async function loadLogs() {
       try {
-        const res = await fetch('/logs.json');
-        const logs = await res.json();
-        const tbody = document.getElementById('logTableBody');
+        const res = await fetch('/logs');
+        const data = await res.json();
+        const table = document.getElementById('logTableBody');
+        table.innerHTML = '';
 
-        logs.reverse().forEach(log => {
-          const row = document.createElement('tr');
-          row.className = "border-b border-gray-700 hover:bg-gray-700";
-          row.innerHTML = `
-            <td class="p-3">${log.admin}</td>
-            <td class="p-3">${log.action}</td>
-            <td class="p-3">${log.target}</td>
-            <td class="p-3">${log.reason}</td>
-            <td class="p-3">
-              ${log.evidence.map((link, i) => `<a class="text-blue-400 underline" href="${link}" target="_blank">Link ${i+1}</a>`).join("<br>")}
-            </td>
-            <td class="p-3">${new Date(log.timestamp * 1000).toLocaleString()}</td>
-          `;
-          tbody.appendChild(row);
+        data.logs.forEach(row => {
+          const tr = document.createElement('tr');
+          row.forEach(cell => {
+            const td = document.createElement('td');
+            td.textContent = cell;
+            td.className = "border px-4 py-2";
+            tr.appendChild(td);
+          });
+          table.appendChild(tr);
         });
-      } catch (err) {
-        console.error("Failed to load logs:", err);
+      } catch (e) {
+        console.error('Failed to load logs:', e);
       }
     }
 
-    fetchLogs();
+    setInterval(loadLogs, 10000); // Refresh every 10 seconds
+    window.onload = loadLogs;
   </script>
 </body>
 </html>
