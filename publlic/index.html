@@ -7,22 +7,29 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-900 text-white min-h-screen font-sans">
+
+  <!-- Test banner to confirm Tailwind loads -->
+  <div class="bg-red-500 text-white text-center p-4">
+    Tailwind is working!
+  </div>
+
   <div class="container mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold mb-6 text-center">Roblox Admin Panel Logs</h1>
-    <div class="overflow-x-auto">
-      <table class="min-w-full bg-gray-800 rounded-lg">
-        <thead>
-          <tr class="text-left text-gray-300 border-b border-gray-600">
-            <th class="p-3">Admin</th>
-            <th class="p-3">Action</th>
-            <th class="p-3">Target</th>
-            <th class="p-3">Reason</th>
-            <th class="p-3">Evidence</th>
-            <th class="p-3">Time</th>
+
+    <div class="overflow-x-auto rounded-lg shadow">
+      <table class="min-w-full bg-gray-800 text-sm rounded-lg">
+        <thead class="text-gray-300 border-b border-gray-600">
+          <tr>
+            <th class="p-3 text-left">Admin</th>
+            <th class="p-3 text-left">Action</th>
+            <th class="p-3 text-left">Target</th>
+            <th class="p-3 text-left">Reason</th>
+            <th class="p-3 text-left">Evidence</th>
+            <th class="p-3 text-left">Time</th>
           </tr>
         </thead>
         <tbody id="logTableBody">
-          <!-- Logs will be inserted here via JS -->
+          <!-- Logs will go here -->
         </tbody>
       </table>
     </div>
@@ -30,27 +37,30 @@
 
   <script>
     async function fetchLogs() {
-      const res = await fetch('/logs.json');
-      const logs = await res.json();
-      const tbody = document.getElementById('logTableBody');
+      try {
+        const res = await fetch('/logs.json');
+        const logs = await res.json();
+        const tbody = document.getElementById('logTableBody');
 
-      logs.reverse().forEach(log => {
-        const row = document.createElement('tr');
-        row.classList.add("border-b", "border-gray-700", "hover:bg-gray-700");
+        logs.reverse().forEach(log => {
+          const row = document.createElement('tr');
+          row.className = "border-b border-gray-700 hover:bg-gray-700";
 
-        row.innerHTML = `
-          <td class="p-3">${log.admin}</td>
-          <td class="p-3">${log.action}</td>
-          <td class="p-3">${log.target}</td>
-          <td class="p-3">${log.reason}</td>
-          <td class="p-3">
-            ${log.evidence.map((link, i) => `<a class='text-blue-400 underline' href='${link}' target='_blank'>Link ${i+1}</a>`).join('<br>')}
-          </td>
-          <td class="p-3">${new Date(log.timestamp * 1000).toLocaleString()}</td>
-        `;
-
-        tbody.appendChild(row);
-      });
+          row.innerHTML = `
+            <td class="p-3">${log.admin}</td>
+            <td class="p-3">${log.action}</td>
+            <td class="p-3">${log.target}</td>
+            <td class="p-3">${log.reason}</td>
+            <td class="p-3">
+              ${log.evidence.map((link, i) => `<a class="text-blue-400 underline" href="${link}" target="_blank">Link ${i+1}</a>`).join("<br>")}
+            </td>
+            <td class="p-3">${new Date(log.timestamp * 1000).toLocaleString()}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        console.error("Failed to load logs:", err);
+      }
     }
 
     fetchLogs();
