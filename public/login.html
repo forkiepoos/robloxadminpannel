@@ -9,19 +9,51 @@
 <body class="bg-gray-100 flex items-center justify-center h-screen">
   <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-sm">
     <h1 class="text-2xl font-bold mb-6 text-center">Login</h1>
-    <form method="POST" action="/login" class="space-y-4">
+    <form id="login-form" class="space-y-4">
       <div>
         <label class="block mb-1 text-sm font-medium text-gray-700">Username</label>
-        <input type="text" name="username" required class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        <input type="text" id="username" required class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" />
       </div>
       <div>
         <label class="block mb-1 text-sm font-medium text-gray-700">Password</label>
-        <input type="password" name="password" required class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        <input type="password" id="password" required class="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" />
       </div>
       <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition">
         Log In
       </button>
     </form>
+    <p id="error-msg" class="text-red-500 text-sm mt-4 text-center hidden"></p>
   </div>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('error-msg');
+
+      try {
+        const res = await fetch('/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password }),
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+          window.location.href = '/dashboard';
+        } else {
+          errorMsg.textContent = data.message || 'Login failed';
+          errorMsg.classList.remove('hidden');
+        }
+      } catch (err) {
+        errorMsg.textContent = 'Server error';
+        errorMsg.classList.remove('hidden');
+      }
+    });
+  </script>
 </body>
 </html>
